@@ -1,92 +1,200 @@
+// Include files for required libraries
+#include <stdio.h>
+
+#include "opencv_aee.hpp"
+#include "main.hpp"     // You can use this file for declaring defined values and functions
+#include "pi2c.h"
 #include <opencv2/opencv.hpp>
 #include <iostream>
 
+Pi2c car(0x22); // Configure the I2C interface to the Car as a global variable
+
 using namespace std;
 using namespace cv;
+int colour = 6;
+// black = 1, blue = 2, red = 3, yelloow = 4, green = 5, all colour exept white = 6
+float compareImage;
+float compareImage1;
+float compareImage2;
+float compareImage3;
 
-int main() {
+void setup(void)
+{
+    setupCamera(320, 240);  // Enable the camera for OpenCV
+}
 
-    // Load the original photo
-    Mat original = imread("original_photo.png", IMREAD_GRAYSCALE);
-    if (original.empty()) {
-        cout << "Could not read the original photo" << endl;
-        return -1;
+int main( int argc, char** argv )
+{
+    setup();    // Call a setup function to prepare IO and devices
+
+    namedWindow("Photo");   // Create a GUI window called photo
+    Mat frameHSV;
+    Mat frameHSV_1;
+    Mat frameHSV_2;
+    Mat frameHSV_3;
+
+    Mat image1 = imread("Circle (Red Line).png");
+    Mat image2 = imread("Star (Green Line).png");
+    Mat image3 = imread("Triangle (Blue Line).png");
+    Mat image4 = imread("Umbrella (Yellow Line).png");
+
+    if (image1.data == NULL)
+    {
+        cout << "No image found! Check path." << endl;
+        return 1;   //ERROR
     }
-
-    // Create a named window for the original photo
-    namedWindow("Original Photo", WINDOW_NORMAL);
-    resizeWindow("Original Photo", 500, 500);
-    imshow("Original Photo", original);
-
-    // Create a named window for the transformed live image
-    namedWindow("Transformed Live Image", WINDOW_NORMAL);
-    resizeWindow("Transformed Live Image", 500, 500);
-
-    // Initialize the video capture
-    VideoCapture cap(0);
-    if (!cap.isOpened()) {
-        cout << "Could not open the camera" << endl;
-        return -1;
+    if (image2.data == NULL)
+    {
+        cout << "No image found! Check path." << endl;
+        return 1;   //ERROR
     }
+    if (image3.data == NULL)
+    {
+        cout << "No image found! Check path." << endl;
+        return 1;   //ERROR
+    }
+    if (image4.data == NULL)
+    {
+        cout << "No image found! Check path." << endl;
+        return 1;   //ERROR
+    }
+    else
+    {
 
-    // Start the video capture loop
-    while (true) {
+        cvtColor(image1, frameHSV, COLOR_BGR2HSV);
+        inRange(frameHSV, Scalar(145, 50,50), Scalar(175, 255, 255), frameHSV);
 
-        // Capture a frame from the camera
+        cvtColor(image2, frameHSV_1, COLOR_BGR2HSV);
+        inRange(frameHSV_1, Scalar(145, 50,50), Scalar(175, 255, 255), frameHSV_1);
+
+        cvtColor(image3, frameHSV_2, COLOR_BGR2HSV);
+        inRange(frameHSV_2, Scalar(145, 50,50), Scalar(175, 255, 255), frameHSV_2);
+
+        cvtColor(image4, frameHSV_3, COLOR_BGR2HSV);
+        inRange(frameHSV_3, Scalar(145, 50,50), Scalar(175, 255, 255), frameHSV_3);
+
+        //namedWindow("Logo", CV_WINDOW_AUTOSIZE);
+        resize(frameHSV, frameHSV, Size(320, 240));
+        resize(frameHSV_1, frameHSV_1, Size(320, 240));
+        resize(frameHSV_2, frameHSV_2, Size(320, 240));
+        resize(frameHSV_3, frameHSV_3, Size(320, 240));
+
+        imshow("Circle Logo gray scale", frameHSV);
+    }
+    //namedWindow("Logo", CV_WINDOW_AUTOSIZE);
+    //imshow("Circle Logo", image1);
+    //imshow("Circle Logo (HSV)", shape1);
+    // imshow("Circle Logo2 (HSV)", frameHSV);
+    // imshow("Star Logo", image2);
+    // imshow("Triangle Logo", image3);
+    //imshow("Umbrella Logo", image4);
+    // waitKey();//without this image won't be shown
+
+    while(1)    // Main loop to perform image processing
+    {
         Mat frame;
-        cap.read(frame);
 
-        // Convert the frame to grayscale
-        cvtColor(frame, frame, COLOR_BGR2GRAY);
+        while(frame.empty())
+            frame = captureFrame(); // Capture a frame from the camera and store in a new matrix variable
+        //imshow("Camera", frame);
+        Mat hsvImg;
+        cvtColor(frame, hsvImg, COLOR_BGR2HSV);
+        Mat mask;
+        if (colour==1)
+        {
+            Scalar lower(38,0,0);
+            Scalar upper(91,106,62);
+            inRange(hsvImg, lower, upper, mask);
+        }
+        else if (colour==2)
+        {
+            Scalar lower1(95, 0, 0);
+            Scalar upper1(109, 255, 255);
+            inRange(hsvImg, lower1, upper1, mask);
+        }
+        else if (colour==3)
+        {
+            Scalar lower2(160, 0, 0);
+            Scalar upper2(179, 255, 255);
+            inRange(hsvImg, lower2, upper2, mask);
+        }
+        else if (colour==4)
+        {
+            Scalar lower3(4, 100, 10);
+            Scalar upper3(34, 230, 230);
+            inRange(hsvImg, lower3, upper3, mask);
+        }
+        else if (colour==5)
+        {
+            Scalar lower4(52, 95, 30);
+            Scalar upper4(83, 255, 131);
+            inRange(hsvImg, lower4, upper4, mask);
+        }
+        else if (colour==6)
+        {
+            Scalar lower5(145, 50,50);
+            Scalar upper5(170, 160, 125);
+            inRange(hsvImg, lower5, upper5, mask);
+        }
+        else
+        {
+            return 0;
+        }
 
-        // Apply thresholding to the frame
-        Mat thresh;
-        threshold(frame, thresh, 128, 255, THRESH_BINARY);
+        // Show the resulting image
+        imshow("Photo", mask);
 
-        // Find contours in the frame
+        // Find contours
         vector<vector<Point>> contours;
-        findContours(thresh, contours, RETR_LIST, CHAIN_APPROX_SIMPLE);
+        vector<Vec4i> hierachy;
+        findContours(mask, contours, hierachy, RETR_TREE, CHAIN_APPROX_SIMPLE, Point(0,0));
 
-        // Loop through each contour
-        for (int i = 0; i < contours.size(); i++) {
+        int largestContourArea = 0;
+        int largestContourIndex = -1;
+        if (contours.size() > 0)
+        {
+            vector<vector<Point>> approxcontours(contours.size());
 
-            // Compute the bounding box of the contour
-            Rect rect = boundingRect(contours[i]);
+            for (int i = 0; i < contours.size(); i++)
+            {
+                approxPolyDP(contours[i], approxcontours[i], 30, true);
+                double area = contourArea(approxcontours[i]);
+                if (area > largestContourArea)
+                {
+                    largestContourIndex = i;
+                    largestContourArea = area;
+                }
+            }
 
-            // Draw the bounding box around the contour
-            rectangle(frame, rect, Scalar(255), 2);
+            drawContours(frame, approxcontours, largestContourIndex, Scalar(0, 255, 0), 2);
 
-            // Extract the symbol from the bounding box
-            Mat symbol = thresh(rect);
+            // Show the resulting image
+            imshow("Photo", frame);
 
-            // Resize the symbol to the same size as the original photo
-            resize(symbol, symbol, Size(original.cols, original.rows));
 
-            // Compute the difference between the symbol and the original photo
-            Mat diff;
-            absdiff(original, symbol, diff);
+            if (largestContourIndex != -1)
+            {
+                Mat new_image = transformPerspective(approxcontours[largestContourIndex], mask, 320, 240);
+                if ((new_image.cols > 0)&&(new_image.rows > 0))
+                {
 
-            // Compute the sum of pixel values in the difference image
-            double sum = cv::sum(diff)[0];
+                    imshow("transformed image", new_image);
 
-            // If the sum is below a threshold, the symbol matches the original photo
-            if (sum < 10000) {
-                // Draw a green rectangle around the symbol
-                rectangle(frame, rect, Scalar(0, 255, 0), 2);
+                    compareImage = compareImages(new_image,frameHSV);
+                    compareImage1 = compareImages(new_image,frameHSV_1);
+                    compareImage2 = compareImages(new_image,frameHSV_2);
+                    compareImage3 = compareImages(new_image,frameHSV_3);
+                    printf("Percentage = %f\n", compareImage);
+                }
+
             }
         }
-
-        // Show the transformed live image
-        imshow("Transformed Live Image", frame);
-
-        // Check for user input to exit the program
-        if (waitKey(1) == 27) {
-            break;
-        }
+        // Apply color thresholding to HSV image
+        waitKey(100);
     }
-
-    // Release the video capture
-    cap.release();
-
+    waitKey(5);//without this image won't be shown
+    closeCV();  // Disable the camera and close any windows
+//cap.release(); // Release the camera
+//destroyAllWindows(); // Close all windows
     return 0;
 }
